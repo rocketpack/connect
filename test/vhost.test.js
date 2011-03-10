@@ -3,44 +3,59 @@
  * Module dependencies.
  */
 
-var connect = require('connect'),
-    helpers = require('./helpers'),
-    assert = require('assert'),
-    http = require('http');
+var connect = require('connect')
+  , assert = require('assert')
+  , should = require('should')
+  , http = require('http');
 
 module.exports = {
-    test: function(){
-        var server = helpers.run(
-            connect.vhost('foo.com', connect.createServer(
-                function(req, res){
-                    res.writeHead(200, {});
-                    res.end('from foo');
-                }
-            )),
-            connect.vhost('bar.com', connect.createServer(
-                function(req, res){
-                    res.writeHead(200, {});
-                    res.end('from bar');
-                }
-            ))
-        );
+  'test with host': function(){
+    var a = connect.createServer(function(req, res){
+      res.end('from foo');
+    });
+    
+    var b = connect.createServer(function(req, res){
+      res.end('from bar');
+    });
+    
+    var app = connect.createServer(
+        connect.vhost('foo.com', a)
+      , connect.vhost('bar.com', b)
+    );
 
-        var req = server.request('GET', '/', { Host: 'foo.com' });
-        req.buffer = true;
-        req.addListener('response', function(res){
-            res.addListener('end', function(){
-                assert.equal('from foo', res.body);
-            });
-        });
-        req.end();
+    assert.response(app,
+      { url: '/', headers: { Host: 'foo.com' }},
+      { body: 'from foo' });
+    
+    assert.response(app,
+      { url: '/', headers: { Host: 'bar.com' }},
+      { body: 'from bar' });
+    
+    assert.response(app,
+      { url: '/', headers: { Host: 'other.com' }},
+      { body: 'Cannot GET /', status: 404 });
+  },
+  
+  'test with wildcard': function(){
+    var server = connect.createServer(function(req, res){
+      res.end('from ' + req.subdomains.join(', '));
+    });
+    
+    var app = connect.createServer(
+        connect.vhost('*.foo.com', server)
+      , connect.vhost('foo.com', server)
+    );
 
-        var req = server.request('GET', '/', { Host: 'bar.com' });
-        req.buffer = true;
-        req.addListener('response', function(res){
-            res.addListener('end', function(){
-                assert.equal('from bar', res.body);
-            });
-        });
-        req.end();
-    }
-}
+    assert.response(app,
+      { url: '/', headers: { Host: 'foo.com' }},
+      { body: 'from foo' });
+    
+    assert.response(app,
+      { url: '/', headers: { Host: 'tj.foo.com' }},
+      { body: 'from tj, foo' });
+  
+    assert.response(app,
+      { url: '/', headers: { Host: 'holowaychuk.tj.foo.com' }},
+      { body: 'from holowaychuk, tj, foo' });
+  }
+};
