@@ -7,5 +7,6 @@
     { "name": "TJ Holowaychuk", "email": "tj@sencha.com" }
   ],
   "directories": { "lib": "./lib/connect" },
+  "main": "./lib/connect/index.js",
   "engines": { "node": ">= 0.1.98" }
 }
